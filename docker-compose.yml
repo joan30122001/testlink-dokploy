@@ -1,4 +1,4 @@
-# services:
+services:
   mariadb:
     image: mariadb:10.6
     environment:
@@ -13,15 +13,14 @@
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pchange_root"]
       interval: 10s
       timeout: 5s
-      retries: 20
+      retries: 10
 
   testlink:
     build:
       context: ./testlink
       dockerfile: Dockerfile
     depends_on:
-      mariadb:
-        condition: service_healthy
+      - mariadb
     environment:
       - TL_DB_HOST=mariadb
       - TL_DB_NAME=bitnami_testlink
@@ -32,18 +31,12 @@
       - TL_ADMIN_PASS=admin12345
       - TL_ADMIN_EMAIL=admin@example.com
       - TL_ENABLE_API=true
-    # No host port mapping; Dokploy will route to container:80
-    expose:
-      - "80"
+    ports:
+      - "8080:80"
     volumes:
       - testlink_data:/var/www/html/upload_area
       - testlink_logs:/var/www/html/logs
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
 
   phpmyadmin:
     image: phpmyadmin:5-apache
@@ -51,12 +44,10 @@
       - PMA_HOST=mariadb
       - PMA_USER=bn_testlink
       - PMA_PASSWORD=change_db_pw
-    # For Dokploy: remove host mapping; give it its own domain with port 80
-    expose:
+    ports:
       - "80"
     depends_on:
-      mariadb:
-        condition: service_healthy
+      - mariadb
     restart: unless-stopped
 
 volumes:
