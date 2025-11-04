@@ -10,7 +10,10 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) gd mysqli zip
+  && docker-php-ext-install -j$(nproc) gd mysqli zip \
+  && docker-php-ext-install -j$(nproc) mbstring xml curl intl \
+  && docker-php-ext-configure ldap --with-libdir=lib/x86_64-linux-gnu \
+  && docker-php-ext-install -j$(nproc) ldap
 
 # xmlrpc (PHP 7.4) via PECL
 RUN pecl install xmlrpc-1.0.0RC3 && docker-php-ext-enable xmlrpc
