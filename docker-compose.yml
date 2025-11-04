@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  mariadb:
+    image: bitnami/mariadb:10.6
+    environment:
+      - MARIADB_ROOT_PASSWORD=change_root
+      - MARIADB_USER=testlink
+      - MARIADB_PASSWORD=testlink12345
+      - MARIADB_DATABASE=bitnami_testlink
+    volumes:
+      - db_data:/bitnami/mariadb
+    restart: unless-stopped
+
+  testlink:
+    image: bitnami/testlink:1.9.20
+    depends_on:
+      - mariadb
+    environment:
+      - TESTLINK_DATABASE_HOST=mariadb
+      - TESTLINK_DATABASE_PORT_NUMBER=3306
+      - TESTLINK_DATABASE_USER=bn_testlink
+      - TESTLINK_DATABASE_NAME=bitnami_testlink
+      - TESTLINK_DATABASE_PASSWORD=change_db_pw
+      - TESTLINK_USERNAME=admin
+      - TESTLINK_PASSWORD=admin12345
+      - TESTLINK_EMAIL=ngounouloic675@gmail.com
+      - ALLOW_EMPTY_PASSWORD=no
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    volumes:
+      - testlink_data:/bitnami/testlink
+    restart: unless-stopped
+
+  phpmyadmin:
+    image: bitnami/phpmyadmin:latest
+    environment:
+      - DATABASE_HOST=mariadb
+      - DATABASE_PORT_NUMBER=3306
+      - DATABASE_USER=testlink
+      - DATABASE_PASSWORD=testlink12345
+    ports:
+      - "8081:8080"
+    depends_on:
+      - mariadb
+    restart: unless-stopped
+
