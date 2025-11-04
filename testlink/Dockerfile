@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libzip-dev libldap2-dev libxml2-dev \
     libonig-dev libicu-dev libcurl4-openssl-dev \
     $PHPIZE_DEPS \
+    default-mysql-client \
  && rm -rf /var/lib/apt/lists/*
 
 # PHP extensions
@@ -21,6 +22,17 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
 
 # Apache tweaks
 RUN a2enmod rewrite
+
+# Allow serving the docroot and .htaccess overrides (prevents generic 403)
+RUN printf '%s\n' \
+  '<Directory /var/www/html>' \
+  '  Options FollowSymLinks' \
+  '  AllowOverride All' \
+  '  Require all granted' \
+  '</Directory>' \
+  'DirectoryIndex index.php index.html' \
+  > /etc/apache2/conf-available/testlink.conf \
+ && a2enconf testlink
 
 # Fetch & install TestLink
 RUN curl -L -o /tmp/testlink.tar.gz \
