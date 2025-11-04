@@ -46,9 +46,10 @@ services:
       - PMA_USER=bn_testlink
       - PMA_PASSWORD=change_db_pw
     ports:
-      - "8081"
+      - "8081:80"
     depends_on:
-      - mariadb
+      mariadb:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
