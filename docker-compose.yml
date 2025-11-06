@@ -32,22 +32,18 @@ services:
       - TL_ADMIN_PASS=admin12345
       - TL_ADMIN_EMAIL=admin@example.com
       - TL_ENABLE_API=true
-    # ❌ No host port publish here for Dokploy
-    # ports:
-    #   - "8080:80"
+    ports:
+      - "8080:80"      # <-- Dokploy will point the domain to this host port
     volumes:
       - testlink_data:/var/www/html/upload_area
       - testlink_logs:/var/www/html/logs
     restart: unless-stopped
-    networks:
-      - dokploy-proxy
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost/login.php"]
       interval: 10s
       timeout: 5s
       retries: 12
 
-  # Keep phpMyAdmin for your own debugging via a random host port
   phpmyadmin:
     image: phpmyadmin:5-apache
     environment:
@@ -60,15 +56,8 @@ services:
       mariadb:
         condition: service_healthy
     restart: unless-stopped
-    # optional: also attach to proxy if you’ll bind a domain to it
-    # networks:
-    #   - dokploy-proxy
 
 volumes:
   mariadb_data:
   testlink_data:
   testlink_logs:
-
-networks:
-  dokploy-proxy:
-    external: true
