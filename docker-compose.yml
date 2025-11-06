@@ -1,64 +1,3 @@
-# services:
-#   mariadb:
-#     image: mariadb:10.6
-#     environment:
-#       - MARIADB_ROOT_PASSWORD=change_root
-#       - MARIADB_DATABASE=bitnami_testlink
-#       - MARIADB_USER=bn_testlink
-#       - MARIADB_PASSWORD=change_db_pw
-#     volumes:
-#       - mariadb_data:/var/lib/mysql
-#     restart: unless-stopped
-#     healthcheck:
-#       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pchange_root"]
-#       interval: 10s
-#       timeout: 5s
-#       retries: 10
-    
-
-#   testlink:
-#     build:
-#       context: ./testlink
-#       dockerfile: Dockerfile
-#     depends_on:
-#       - mariadb
-#     environment:
-#       - TL_DB_HOST=mariadb
-#       - TL_DB_NAME=bitnami_testlink
-#       - TL_DB_USER=bn_testlink
-#       - TL_DB_PASS=change_db_pw
-#       - TL_DB_PREFIX=
-#       - TL_ADMIN_USER=admin
-#       - TL_ADMIN_PASS=admin12345
-#       - TL_ADMIN_EMAIL=admin@example.com
-#       - TL_ENABLE_API=true
-#     ports:
-#       - "8080:80"
-#     volumes:
-#       - testlink_data:/var/www/html/upload_area
-#       - testlink_logs:/var/www/html/logs
-#     restart: unless-stopped
-
-#   phpmyadmin:
-#     image: phpmyadmin:5-apache
-#     environment:
-#       - PMA_HOST=mariadb
-#       - PMA_USER=bn_testlink
-#       - PMA_PASSWORD=change_db_pw
-#     ports:
-#       - "8081:80"
-#     depends_on:
-#       mariadb:
-#         condition: service_healthy
-#     restart: unless-stopped
-
-# volumes:
-#   mariadb_data:
-#   testlink_data:
-#   testlink_logs:
-
-
-
 services:
   mariadb:
     image: mariadb:10.6
@@ -93,7 +32,7 @@ services:
       - TL_ADMIN_PASS=admin12345
       - TL_ADMIN_EMAIL=admin@example.com
       - TL_ENABLE_API=true
-    # ❌ remove host publish for Dokploy
+    # ❌ No host port publish here for Dokploy
     # ports:
     #   - "8080:80"
     volumes:
@@ -101,8 +40,14 @@ services:
       - testlink_logs:/var/www/html/logs
     restart: unless-stopped
     networks:
-      - dokploy-network   # ✅ attach to Dokploy proxy network
+      - dokploy-proxy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost/login.php"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
 
+  # Keep phpMyAdmin for your own debugging via a random host port
   phpmyadmin:
     image: phpmyadmin:5-apache
     environment:
@@ -110,14 +55,14 @@ services:
       - PMA_USER=bn_testlink
       - PMA_PASSWORD=change_db_pw
     ports:
-      - "8081:80"         # ok to keep for your own testing
+      - "8081:80"
     depends_on:
       mariadb:
         condition: service_healthy
     restart: unless-stopped
-    # (optional) attach too if you want to put a domain on it later
+    # optional: also attach to proxy if you’ll bind a domain to it
     # networks:
-    #   - dokploy-network
+    #   - dokploy-proxy
 
 volumes:
   mariadb_data:
@@ -125,5 +70,5 @@ volumes:
   testlink_logs:
 
 networks:
-  dokploy-network:
-    external: true        # ✅ use Dokploy’s existing proxy network
+  dokploy-proxy:
+    external: true

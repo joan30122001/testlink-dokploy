@@ -23,16 +23,19 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
 # Apache tweaks
 RUN a2enmod rewrite
 
-# Allow serving the docroot and .htaccess overrides (prevents generic 403)
-RUN printf '%s\n' \
-  '<Directory /var/www/html>' \
-  '  Options FollowSymLinks' \
-  '  AllowOverride All' \
-  '  Require all granted' \
-  '</Directory>' \
-  'DirectoryIndex index.php index.html' \
-  > /etc/apache2/conf-available/testlink.conf \
- && a2enconf testlink
+# ✅ Ensure Apache serves /var/www/html and honors .htaccess, and logs go to stdout/stderr
+RUN a2enmod rewrite && \
+    printf '%s\n' \
+      '<Directory /var/www/html>' \
+      '  Options FollowSymLinks' \
+      '  AllowOverride All' \
+      '  Require all granted' \
+      '</Directory>' \
+      'DirectoryIndex index.php index.html' \
+      > /etc/apache2/conf-available/testlink.conf && \
+    a2enconf testlink && \
+    ln -sf /proc/self/fd/1 /var/log/apache2/access.log && \
+    ln -sf /proc/self/fd/2 /var/log/apache2/error.log
 
 # Fetch & install TestLink
 RUN curl -L -o /tmp/testlink.tar.gz \
