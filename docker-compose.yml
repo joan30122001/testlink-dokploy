@@ -1,13 +1,13 @@
 services:
   mariadb:
-    image: bitnami/mariadb:11        # <- use a supported tag
+    image: mariadb:10.11
     environment:
       - MARIADB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
       - MARIADB_DATABASE=${DB_NAME}
       - MARIADB_USER=${DB_USER}
       - MARIADB_PASSWORD=${DB_PASSWORD}
     volumes:
-      - mariadb_data:/bitnami/mariadb
+      - mariadb_data:/var/lib/mysql
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_ROOT_PASSWORD}"]
@@ -16,7 +16,7 @@ services:
       retries: 10
 
   testlink:
-    image: bitnami/testlink:1         # stable Bitnami TestLink
+    image: bitnami/testlink:latest
     depends_on:
       mariadb:
         condition: service_healthy
@@ -30,7 +30,7 @@ services:
       - TESTLINK_PASSWORD=${TL_PASSWORD}
       - TESTLINK_EMAIL=${TL_EMAIL}
     ports:
-      - "8080:8080"                   # map container 8080 -> host 8080
+      - "8080:8080"          # Dokploy domain must target port 8080
     volumes:
       - testlink_data:/bitnami/testlink
     restart: unless-stopped
