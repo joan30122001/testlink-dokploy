@@ -16,26 +16,30 @@ services:
       retries: 10
 
   testlink:
-    image: bitnami/testlink:latest
+    build:
+      context: ./testlink
+      dockerfile: Dockerfile
     depends_on:
       mariadb:
         condition: service_healthy
     environment:
-      - TESTLINK_DATABASE_HOST=mariadb
-      - TESTLINK_DATABASE_PORT_NUMBER=3306
-      - TESTLINK_DATABASE_NAME=${DB_NAME}
-      - TESTLINK_DATABASE_USER=${DB_USER}
-      - TESTLINK_DATABASE_PASSWORD=${DB_PASSWORD}
-      - TESTLINK_USERNAME=${TL_USERNAME}
-      - TESTLINK_PASSWORD=${TL_PASSWORD}
-      - TESTLINK_EMAIL=${TL_EMAIL}
+      - TL_DB_HOST=mariadb
+      - TL_DB_NAME=${DB_NAME}
+      - TL_DB_USER=${DB_USER}
+      - TL_DB_PASS=${DB_PASSWORD}
+      - TL_DB_PREFIX=
+      - TL_ADMIN_USER=${TL_USERNAME}
+      - TL_ADMIN_PASS=${TL_PASSWORD}
+      - TL_ADMIN_EMAIL=${TL_EMAIL}
+      - TL_ENABLE_API=true
     ports:
-      - "8080:8080"          # Dokploy domain must target port 8080
+      - "8080:80"        # Dokploy domain must point to host port 8080
     volumes:
-      - testlink_data:/bitnami/testlink
+      - testlink_data:/var/www/html/upload_area
+      - testlink_logs:/var/www/html/logs
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8080/login.php"]
+      test: ["CMD", "curl", "-sf", "http://localhost/login.php"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -43,3 +47,4 @@ services:
 volumes:
   mariadb_data:
   testlink_data:
+  testlink_logs:

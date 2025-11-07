@@ -15,7 +15,6 @@ set -e
 CONFIG_DB="/var/www/html/config_db.inc.php"
 CONFIG_MAIN="/var/www/html/config.inc.php"
 
-# Wait for DB
 echo "Waiting for DB ${TL_DB_HOST}:${TL_DB_PORT}..."
 for i in {1..60}; do
   if mysqladmin ping -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" --silent; then
@@ -25,7 +24,7 @@ for i in {1..60}; do
   sleep 2
 done
 
-# Write DB config
+# Write DB config (if not present)
 if [ ! -f "$CONFIG_DB" ]; then
   cat > "$CONFIG_DB" <<PHP
 <?php
@@ -42,12 +41,11 @@ PHP
   echo "Wrote $CONFIG_DB"
 fi
 
-# Make writable directories (TestLink needs these)
+# Writable dirs
 mkdir -p /var/www/html/upload_area /var/www/html/logs /var/www/html/gui/templates_c
 chown -R www-data:www-data /var/www/html/upload_area /var/www/html/logs /var/www/html/gui/templates_c || true
 
-# If schema missing, import it (headless installer)
-# We'll check for the users table
+# Import schema if users table missing
 SCHEMA_OK=$(mysql -N -s -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" \
   -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${TL_DB_NAME}' AND table_name='users';")
 if [ "${SCHEMA_OK}" = "0" ]; then
@@ -59,7 +57,7 @@ if [ "${SCHEMA_OK}" = "0" ]; then
   echo "Schema import complete."
 fi
 
-# Ensure API enabled if requested
+# Enable API flag (if present)
 if [ -f "$CONFIG_MAIN" ] && [ "${TL_ENABLE_API}" = "true" ]; then
   grep -q "\$tlCfg->api->enabled" "$CONFIG_MAIN" \
     && sed -i "s/\$tlCfg->api->enabled\s*=\s*FALSE/\$tlCfg->api->enabled = TRUE/i" "$CONFIG_MAIN" || true
@@ -85,6 +83,5 @@ if($res && $res->num_rows>0){
 }
 '
 
-# Final perms and start Apache
 chown -R www-data:www-data /var/www/html
 exec apache2-foreground

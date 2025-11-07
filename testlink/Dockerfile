@@ -4,7 +4,7 @@ FROM php:7.4-apache
 ENV TL_VERSION=1.9.20
 WORKDIR /var/www/html
 
-# System deps for PHP extensions
+# System deps for PHP extensions + mysql client used by entrypoint
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates curl unzip git \
     libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
@@ -20,10 +20,7 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
  && docker-php-ext-configure ldap --with-libdir=lib/x86_64-linux-gnu \
  && docker-php-ext-install -j"$(nproc)" ldap
 
-# Apache tweaks
-RUN a2enmod rewrite
-
-# ✅ Ensure Apache serves /var/www/html and honors .htaccess, and logs go to stdout/stderr
+# Apache: rewrite + allow serving docroot + .htaccess, stream logs
 RUN a2enmod rewrite && \
     printf '%s\n' \
       '<Directory /var/www/html>' \
