@@ -46,10 +46,18 @@ RUN a2enmod rewrite && \
 # Fetch & install TestLink
 RUN curl -L -o /tmp/testlink.tar.gz \
       "https://downloads.sourceforge.net/project/testlink/TestLink%201.9/TestLink%20${TL_VERSION}/testlink-${TL_VERSION}.tar.gz" \
- && tar -xzf /tmp/testlink.tar.gz -C /var/www/html --strip-components=1 \
+ && mkdir -p /tmp/testlink \
+ && tar -xzf /tmp/testlink.tar.gz -C /tmp/testlink \
  && rm /tmp/testlink.tar.gz \
- && [ -f /var/www/html/index.php ] || printf "<?php header('Location: login.php'); exit; ?>" > /var/www/html/index.php \
- && mkdir -p /var/www/html/upload_area /var/www/html/logs /var/www/html/gui/templates_c \
+ # Move htdocs/* to Apache docroot (the tar contains .../htdocs/*)
+ && sh -c 'shopt -s dotglob nullglob; src=$(find /tmp/testlink -maxdepth 2 -type d -name htdocs | head -n1); \
+           if [ -n "$src" ]; then mv "$src"/* /var/www/html/; else echo "ERROR: htdocs/ not found" >&2; exit 1; fi' \
+ # (Optional) copy sample app config if present
+ && if [ -f /var/www/html/config.inc.php.sample ] && [ ! -f /var/www/html/config.inc.php ]; then \
+        cp /var/www/html/config.inc.php.sample /var/www/html/config.inc.php; \
+    fi \
+ # Clean up and set ownership
+ && rm -rf /tmp/testlink \
  && chown -R www-data:www-data /var/www/html
 
 # # Make writable dirs (needed by installer & runtime)
