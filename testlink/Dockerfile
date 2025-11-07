@@ -19,29 +19,42 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
  && docker-php-ext-configure ldap --with-libdir=lib/x86_64-linux-gnu \
  && docker-php-ext-install -j"$(nproc)" ldap
 
-# Apache: enable rewrite, allow .htaccess, set DirectoryIndex
+# Apache: enable rewrite, allow .htaccess, set DirectoryIndex (include login.php)
 RUN a2enmod rewrite && \
+    printf '%s\n' \
+      'ServerName localhost' \
+      > /etc/apache2/conf-available/servername.conf && \
+    a2enconf servername && \
     printf '%s\n' \
       '<Directory /var/www/html>' \
       '  Options FollowSymLinks' \
       '  AllowOverride All' \
       '  Require all granted' \
       '</Directory>' \
-      'DirectoryIndex index.php index.html' \
+      'DirectoryIndex login.php index.php index.html' \
       > /etc/apache2/conf-available/testlink.conf && \
     a2enconf testlink && \
     ln -sf /proc/self/fd/1 /var/log/apache2/access.log && \
     ln -sf /proc/self/fd/2 /var/log/apache2/error.log
 
-# Fetch & unpack TestLink
+# # Fetch & unpack TestLink
+# RUN curl -L -o /tmp/testlink.tar.gz \
+#       "https://downloads.sourceforge.net/project/testlink/TestLink%201.9/TestLink%20${TL_VERSION}/testlink-${TL_VERSION}.tar.gz" \
+#  && tar -xzf /tmp/testlink.tar.gz -C /var/www/html --strip-components=1 \
+#  && rm /tmp/testlink.tar.gz
+
+# Fetch & install TestLink
 RUN curl -L -o /tmp/testlink.tar.gz \
       "https://downloads.sourceforge.net/project/testlink/TestLink%201.9/TestLink%20${TL_VERSION}/testlink-${TL_VERSION}.tar.gz" \
  && tar -xzf /tmp/testlink.tar.gz -C /var/www/html --strip-components=1 \
- && rm /tmp/testlink.tar.gz
+ && rm /tmp/testlink.tar.gz \
+ && [ -f /var/www/html/index.php ] || printf "<?php header('Location: login.php'); exit; ?>" > /var/www/html/index.php \
+ && mkdir -p /var/www/html/upload_area /var/www/html/logs /var/www/html/gui/templates_c \
+ && chown -R www-data:www-data /var/www/html
 
-# Make writable dirs (needed by installer & runtime)
-RUN mkdir -p /var/www/html/upload_area /var/www/html/logs /var/www/html/gui/templates_c && \
-    chown -R www-data:www-data /var/www/html
+# # Make writable dirs (needed by installer & runtime)
+# RUN mkdir -p /var/www/html/upload_area /var/www/html/logs /var/www/html/gui/templates_c && \
+#     chown -R www-data:www-data /var/www/html
 
 EXPOSE 80
 CMD ["apache2-foreground"]

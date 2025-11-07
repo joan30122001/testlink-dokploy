@@ -36,7 +36,7 @@ services:
       - testlink_cache:/var/www/html/gui/templates_c
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost/index.php"]
+      test: ["CMD", "curl", "-sf", "http://localhost/login.php"]
       interval: 10s
       timeout: 5s
       retries: 20
