@@ -36,9 +36,9 @@ services:
       - TL_ADMIN_PASS=admin12345
       - TL_ADMIN_EMAIL=admin@example.com
       - TL_ENABLE_API=true
-    # Publish container port 80 to host 8080 — this is what you will put in Dokploy.
+    # Publish container port 80 to host 8888 — this is what you will put in Dokploy.
     ports:
-      - "8080:80"
+      - "8888:80"
     volumes:
       - testlink_data:/var/www/html/upload_area
       - testlink_logs:/var/www/html/logs
