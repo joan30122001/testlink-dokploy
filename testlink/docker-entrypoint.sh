@@ -17,7 +17,7 @@ CONFIG_MAIN="/var/www/html/config.inc.php"
 
 echo "Waiting for DB ${TL_DB_HOST}:${TL_DB_PORT}..."
 for i in {1..60}; do
-  if mysqladmin ping -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" --silent; then
+  if mysqladmin ping -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" --silent; then
     echo "DB is up."
     break
   fi
