@@ -16,7 +16,7 @@ CONFIG_DB="/var/www/html/config_db.inc.php"
 CONFIG_MAIN="/var/www/html/config.inc.php"
 
 echo "[entrypoint] Waiting for DB ${TL_DB_HOST}:${TL_DB_PORT}…"
-for i in {1..60}; do
+for i in {1..120}; do
   if mysqladmin ping -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" --silent >/dev/null 2>&1; then
     echo "[entrypoint] DB ping ok"
     break
@@ -45,30 +45,26 @@ fi
 mkdir -p /var/www/html/upload_area /var/www/html/logs /var/www/html/gui/templates_c
 chown -R www-data:www-data /var/www/html/upload_area /var/www/html/logs /var/www/html/gui/templates_c || true
 
-# Try schema import (NON-FATAL on errors)
-echo "[entrypoint] Checking schema…"
-if mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" \
-  -e "SELECT 1" "${TL_DB_NAME}" >/dev/null 2>&1; then
+# Try schema import (non-fatal)
+if mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" -e "SELECT 1" "${TL_DB_NAME}" >/dev/null 2>&1; then
   SCHEMA_OK=$(mysql -N -s -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" \
     -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${TL_DB_NAME}' AND table_name='users';" 2>/dev/null || echo "ERR")
   if [ "$SCHEMA_OK" = "0" ]; then
     echo "[entrypoint] Importing TestLink schema…"
     mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" "${TL_DB_NAME}" \
-      < /var/www/html/install/sql/testlink_create_tables.sql || echo "[entrypoint] warn: primary schema import failed"
+      < /var/www/html/install/sql/testlink_create_tables.sql || true
     mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" "${TL_DB_NAME}" \
       < /var/www/html/install/sql/testlink_create_tables_mysql.sql || true
-    echo "[entrypoint] Schema import step finished."
+    echo "[entrypoint] Schema import attempt finished."
   fi
-else
-  echo "[entrypoint] warn: DB not reachable with provided creds; skipping schema import"
 fi
 
-# Enable API if requested (non-fatal)
+# Enable API (best effort)
 if [ -f "$CONFIG_MAIN" ] && [ "${TL_ENABLE_API}" = "true" ]; then
   sed -i 's/\($tlCfg->api->enabled\s*=\s*\)FALSE/\1TRUE/i' "$CONFIG_MAIN" || true
 fi
 
-# Create admin if table exists (non-fatal)
+# Create admin if table exists (best effort)
 php -r '
 $u=getenv("TL_ADMIN_USER"); $p=getenv("TL_ADMIN_PASS"); $e=getenv("TL_ADMIN_EMAIL");
 @include "/var/www/html/config_db.inc.php";
