@@ -1,63 +1,50 @@
+version: "3.8"
+
 services:
   mariadb:
-    image: mariadb:10.6
+    image: bitnami/mariadb:10.6
     environment:
-      - MARIADB_ROOT_PASSWORD=change_root
-      - MARIADB_DATABASE=bitnami_testlink
-      - MARIADB_USER=bn_testlink
-      - MARIADB_PASSWORD=change_db_pw
+      - MARIADB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MARIADB_DATABASE=${DB_NAME}
+      - MARIADB_USER=${DB_USER}
+      - MARIADB_PASSWORD=${DB_PASSWORD}
     volumes:
-      - mariadb_data:/var/lib/mysql
+      - mariadb_data:/bitnami/mariadb
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pchange_root"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 10
 
   testlink:
-    build:
-      context: ./testlink
-      dockerfile: Dockerfile
+    image: bitnami/testlink:1
     depends_on:
       mariadb:
         condition: service_healthy
     environment:
-      - TL_DB_HOST=mariadb
-      - TL_DB_NAME=bitnami_testlink
-      - TL_DB_USER=bn_testlink
-      - TL_DB_PASS=change_db_pw
-      - TL_DB_PREFIX=
-      - TL_ADMIN_USER=admin
-      - TL_ADMIN_PASS=admin12345
-      - TL_ADMIN_EMAIL=admin@example.com
-      - TL_ENABLE_API=true
+      - TESTLINK_DATABASE_HOST=mariadb
+      - TESTLINK_DATABASE_PORT_NUMBER=3306
+      - TESTLINK_DATABASE_NAME=${DB_NAME}
+      - TESTLINK_DATABASE_USER=${DB_USER}
+      - TESTLINK_DATABASE_PASSWORD=${DB_PASSWORD}
+      - TESTLINK_USERNAME=${TL_USERNAME}
+      - TESTLINK_PASSWORD=${TL_PASSWORD}
+      - TESTLINK_EMAIL=${TL_EMAIL}
+      # Optional: set site URL if you want clean links in emails
+      # - APACHE_HTTP_PORT_NUMBER=8080
+      # - TESTLINK_HOST=testlink.learnkap.com
     ports:
-      - "8080:80"      # <-- Dokploy will point the domain to this host port
+      - "8080:8080"        # <— Dokploy domain must point to host port 8080
     volumes:
-      - testlink_data:/var/www/html/upload_area
-      - testlink_logs:/var/www/html/logs
+      - testlink_data:/bitnami/testlink
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost/login.php"]
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/login.php"]
       interval: 10s
       timeout: 5s
       retries: 12
 
-  phpmyadmin:
-    image: phpmyadmin:5-apache
-    environment:
-      - PMA_HOST=mariadb
-      - PMA_USER=bn_testlink
-      - PMA_PASSWORD=change_db_pw
-    ports:
-      - "8081:80"
-    depends_on:
-      mariadb:
-        condition: service_healthy
-    restart: unless-stopped
-
 volumes:
   mariadb_data:
   testlink_data:
-  testlink_logs:
