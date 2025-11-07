@@ -15,16 +15,16 @@ set -e
 CONFIG_DB="/var/www/html/config_db.inc.php"
 CONFIG_MAIN="/var/www/html/config.inc.php"
 
-echo "Waiting for DB ${TL_DB_HOST}:${TL_DB_PORT}..."
+echo "[entrypoint] Waiting for DB ${TL_DB_HOST}:${TL_DB_PORT}…"
 for i in {1..60}; do
-  if mysqladmin ping -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" --silent; then
-    echo "DB is up."
+  if mysqladmin ping -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" --silent >/dev/null 2>&1; then
+    echo "[entrypoint] DB ping ok"
     break
   fi
   sleep 2
 done
 
-# Write DB config (if not present)
+# Write DB config (idempotent)
 if [ ! -f "$CONFIG_DB" ]; then
   cat > "$CONFIG_DB" <<PHP
 <?php
@@ -38,50 +38,56 @@ define('TL_ABS_PATH','/var/www/html/');
 PHP
   chown www-data:www-data "$CONFIG_DB"
   chmod 640 "$CONFIG_DB"
-  echo "Wrote $CONFIG_DB"
+  echo "[entrypoint] Wrote $CONFIG_DB"
 fi
 
 # Writable dirs
 mkdir -p /var/www/html/upload_area /var/www/html/logs /var/www/html/gui/templates_c
 chown -R www-data:www-data /var/www/html/upload_area /var/www/html/logs /var/www/html/gui/templates_c || true
 
-# Import schema if users table missing
-SCHEMA_OK=$(mysql -N -s -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" \
-  -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${TL_DB_NAME}' AND table_name='users';")
-if [ "${SCHEMA_OK}" = "0" ]; then
-  echo "No TestLink schema detected. Importing..."
-  mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" "${TL_DB_NAME}" \
-    < /var/www/html/install/sql/testlink_create_tables.sql
-  mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" "${TL_DB_NAME}" \
-    < /var/www/html/install/sql/testlink_create_tables_mysql.sql || true
-  echo "Schema import complete."
+# Try schema import (NON-FATAL on errors)
+echo "[entrypoint] Checking schema…"
+if mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" \
+  -e "SELECT 1" "${TL_DB_NAME}" >/dev/null 2>&1; then
+  SCHEMA_OK=$(mysql -N -s -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" \
+    -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${TL_DB_NAME}' AND table_name='users';" 2>/dev/null || echo "ERR")
+  if [ "$SCHEMA_OK" = "0" ]; then
+    echo "[entrypoint] Importing TestLink schema…"
+    mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" "${TL_DB_NAME}" \
+      < /var/www/html/install/sql/testlink_create_tables.sql || echo "[entrypoint] warn: primary schema import failed"
+    mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" "${TL_DB_NAME}" \
+      < /var/www/html/install/sql/testlink_create_tables_mysql.sql || true
+    echo "[entrypoint] Schema import step finished."
+  fi
+else
+  echo "[entrypoint] warn: DB not reachable with provided creds; skipping schema import"
 fi
 
-# Enable API flag (if present)
+# Enable API if requested (non-fatal)
 if [ -f "$CONFIG_MAIN" ] && [ "${TL_ENABLE_API}" = "true" ]; then
-  grep -q "\$tlCfg->api->enabled" "$CONFIG_MAIN" \
-    && sed -i "s/\$tlCfg->api->enabled\s*=\s*FALSE/\$tlCfg->api->enabled = TRUE/i" "$CONFIG_MAIN" || true
+  sed -i 's/\($tlCfg->api->enabled\s*=\s*\)FALSE/\1TRUE/i' "$CONFIG_MAIN" || true
 fi
 
-# Create admin if not present
+# Create admin if table exists (non-fatal)
 php -r '
 $u=getenv("TL_ADMIN_USER"); $p=getenv("TL_ADMIN_PASS"); $e=getenv("TL_ADMIN_EMAIL");
-require_once "/var/www/html/config_db.inc.php";
+@include "/var/www/html/config_db.inc.php";
+if (!defined("DB_HOST")) { fwrite(STDERR,"[entrypoint] no DB config\n"); exit(0); }
 $mysqli=@new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
-if ($mysqli->connect_errno) { fwrite(STDERR,"DB not ready\n"); exit(0); }
-$u_esc=$mysqli->real_escape_string($u);
-$res=$mysqli->query("SHOW TABLES LIKE \"users\"");
-if($res && $res->num_rows>0){
-  $res2=$mysqli->query("SELECT 1 FROM users WHERE login=\"{$u_esc}\" LIMIT 1");
-  if(!$res2 || $res2->num_rows==0){
+if ($mysqli->connect_errno){ fwrite(STDERR,"[entrypoint] DB connect fail, skip admin\n"); exit(0); }
+$r=$mysqli->query("SHOW TABLES LIKE \"users\"");
+if($r && $r->num_rows>0){
+  $u_esc=$mysqli->real_escape_string($u);
+  $r2=$mysqli->query("SELECT 1 FROM users WHERE login=\"{$u_esc}\" LIMIT 1");
+  if(!$r2 || $r2->num_rows==0){
     $hash=password_hash($p, PASSWORD_BCRYPT);
-    $mysqli->query("INSERT INTO users (login,password,email,role_id,active,locale) VALUES (\"$u_esc\",\"$hash\",\"$e\",8,1,\"en_GB\")");
-    echo "Admin user created\n";
+    $ok=$mysqli->query("INSERT INTO users (login,password,email,role_id,active,locale) VALUES (\"$u_esc\",\"$hash\",\"$e\",8,1,\"en_GB\")");
+    if($ok){ echo "[entrypoint] Admin user created\n"; }
   }
-} else {
-  fwrite(STDERR,"Users table not found; schema may not be fully imported\n");
 }
-'
+' || true
 
 chown -R www-data:www-data /var/www/html
+
+echo "[entrypoint] Starting Apache…"
 exec apache2-foreground
