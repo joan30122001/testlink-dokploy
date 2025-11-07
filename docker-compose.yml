@@ -1,8 +1,6 @@
-version: "3.8"
-
 services:
   mariadb:
-    image: bitnami/mariadb:10.6
+    image: bitnami/mariadb:11        # <- use a supported tag
     environment:
       - MARIADB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
       - MARIADB_DATABASE=${DB_NAME}
@@ -18,7 +16,7 @@ services:
       retries: 10
 
   testlink:
-    image: bitnami/testlink:1
+    image: bitnami/testlink:1         # stable Bitnami TestLink
     depends_on:
       mariadb:
         condition: service_healthy
@@ -31,11 +29,8 @@ services:
       - TESTLINK_USERNAME=${TL_USERNAME}
       - TESTLINK_PASSWORD=${TL_PASSWORD}
       - TESTLINK_EMAIL=${TL_EMAIL}
-      # Optional: set site URL if you want clean links in emails
-      # - APACHE_HTTP_PORT_NUMBER=8080
-      # - TESTLINK_HOST=testlink.learnkap.com
     ports:
-      - "8080:8080"        # <— Dokploy domain must point to host port 8080
+      - "8080:8080"                   # map container 8080 -> host 8080
     volumes:
       - testlink_data:/bitnami/testlink
     restart: unless-stopped
