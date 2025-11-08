@@ -10,10 +10,11 @@ services:
       - mariadb_data:/var/lib/mysql
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-pchange_root", "--protocol=TCP"]
+      # Use TCP, explicit root, and the right password
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--protocol=TCP", "-u", "root", "-pchange_root"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 15
 
   testlink:
     build:
@@ -32,9 +33,10 @@ services:
       - TL_ADMIN_PASS=admin12345
       - TL_ADMIN_EMAIL=admin@example.com
       - TL_ENABLE_API=true
-    # ❗ NO ports here; proxy will reach it by container networking
+    # Expose on host 8080; easiest with Dokploy “Custom Port”
+    ports:
+      - "8080:80"
     restart: unless-stopped
-    networks: [dokploy-proxy]
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost/login.php"]
       interval: 10s
@@ -53,13 +55,6 @@ services:
       mariadb:
         condition: service_healthy
     restart: unless-stopped
-    networks: [dokploy-proxy]
 
 volumes:
   mariadb_data:
-  testlink_data:
-  testlink_logs:
-
-networks:
-  dokploy-proxy:
-    external: true

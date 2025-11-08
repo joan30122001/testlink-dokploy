@@ -15,7 +15,7 @@ set -e
 CONFIG_DB="/var/www/html/config_db.inc.php"
 CONFIG_MAIN="/var/www/html/config.inc.php"
 
-# Ensure main app config exists if a sample is present
+# Ensure main config exists
 if [ ! -f "$CONFIG_MAIN" ] && [ -f /var/www/html/config.inc.php.sample ]; then
   cp /var/www/html/config.inc.php.sample "$CONFIG_MAIN"
   chown www-data:www-data "$CONFIG_MAIN"
@@ -31,7 +31,7 @@ for i in {1..120}; do
   sleep 2
 done
 
-# Write DB config (idempotent)
+# Write DB config once
 if [ ! -f "$CONFIG_DB" ]; then
   cat > "$CONFIG_DB" <<PHP
 <?php
@@ -52,7 +52,7 @@ fi
 mkdir -p /var/www/html/upload_area /var/www/html/logs /var/www/html/gui/templates_c
 chown -R www-data:www-data /var/www/html/upload_area /var/www/html/logs /var/www/html/gui/templates_c || true
 
-# Try schema import (non-fatal)
+# Import schema if users table missing
 if mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" -e "SELECT 1" "${TL_DB_NAME}" >/dev/null 2>&1; then
   SCHEMA_OK=$(mysql -N -s -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" \
     -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${TL_DB_NAME}' AND table_name='users';" 2>/dev/null || echo "ERR")
@@ -62,16 +62,16 @@ if mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}"
       < /var/www/html/install/sql/testlink_create_tables.sql || true
     mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" "${TL_DB_NAME}" \
       < /var/www/html/install/sql/testlink_create_tables_mysql.sql || true
-    echo "[entrypoint] Schema import attempt finished."
+    echo "[entrypoint] Schema import finished."
   fi
 fi
 
-# Enable API (best effort)
+# Enable API if requested
 if [ -f "$CONFIG_MAIN" ] && [ "${TL_ENABLE_API}" = "true" ]; then
   sed -i 's/\($tlCfg->api->enabled\s*=\s*\)FALSE/\1TRUE/i' "$CONFIG_MAIN" || true
 fi
 
-# Create admin if table exists (best effort)
+# Create admin if not present
 php -r '
 $u=getenv("TL_ADMIN_USER"); $p=getenv("TL_ADMIN_PASS"); $e=getenv("TL_ADMIN_EMAIL");
 @include "/var/www/html/config_db.inc.php";
@@ -89,8 +89,6 @@ if($r && $r->num_rows>0){
   }
 }
 ' || true
-
-chown -R www-data:www-data /var/www/html
 
 echo "[entrypoint] Starting Apache…"
 exec apache2-foreground
