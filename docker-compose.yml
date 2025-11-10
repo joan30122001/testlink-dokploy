@@ -9,6 +9,7 @@ services:
       - MARIADB_DATABASE=testlinkdb
       - MARIADB_USER=tluser
       - MARIADB_PASSWORD=TLpass123!
+      - MARIADB_ROOT_HOST=%          # ← ADD THIS LINE HERE
     # NEW volume name to avoid any old, incompatible DB data
     volumes:
       - mariadb_data_v2:/var/lib/mysql
