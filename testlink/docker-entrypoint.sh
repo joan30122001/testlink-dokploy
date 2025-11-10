@@ -7,6 +7,7 @@ set -e
 : "${TL_DB_USER:=bn_testlink}"
 : "${TL_DB_PASS:=change_db_pw}"
 : "${TL_DB_PREFIX:=}"
+
 : "${TL_ENABLE_API:=true}"
 : "${TL_ADMIN_USER:=admin}"
 : "${TL_ADMIN_PASS:=admin12345}"
@@ -15,7 +16,7 @@ set -e
 CONFIG_DB="/var/www/html/config_db.inc.php"
 CONFIG_MAIN="/var/www/html/config.inc.php"
 
-# Ensure main config exists
+# Ensure main config exists if sample shipped
 if [ ! -f "$CONFIG_MAIN" ] && [ -f /var/www/html/config.inc.php.sample ]; then
   cp /var/www/html/config.inc.php.sample "$CONFIG_MAIN"
   chown www-data:www-data "$CONFIG_MAIN"
@@ -52,7 +53,7 @@ fi
 mkdir -p /var/www/html/upload_area /var/www/html/logs /var/www/html/gui/templates_c
 chown -R www-data:www-data /var/www/html/upload_area /var/www/html/logs /var/www/html/gui/templates_c || true
 
-# Import schema if users table missing
+# Import schema if empty
 if mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" -e "SELECT 1" "${TL_DB_NAME}" >/dev/null 2>&1; then
   SCHEMA_OK=$(mysql -N -s -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" \
     -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${TL_DB_NAME}' AND table_name='users';" 2>/dev/null || echo "ERR")
@@ -62,16 +63,16 @@ if mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}"
       < /var/www/html/install/sql/testlink_create_tables.sql || true
     mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" "${TL_DB_NAME}" \
       < /var/www/html/install/sql/testlink_create_tables_mysql.sql || true
-    echo "[entrypoint] Schema import finished."
+    echo "[entrypoint] Schema import done."
   fi
 fi
 
-# Enable API if requested
+# Enable API flag (best effort)
 if [ -f "$CONFIG_MAIN" ] && [ "${TL_ENABLE_API}" = "true" ]; then
   sed -i 's/\($tlCfg->api->enabled\s*=\s*\)FALSE/\1TRUE/i' "$CONFIG_MAIN" || true
 fi
 
-# Create admin if not present
+# Create admin user if missing
 php -r '
 $u=getenv("TL_ADMIN_USER"); $p=getenv("TL_ADMIN_PASS"); $e=getenv("TL_ADMIN_EMAIL");
 @include "/var/www/html/config_db.inc.php";
