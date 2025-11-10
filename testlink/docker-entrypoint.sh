@@ -64,6 +64,23 @@ if mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}"
       < /var/www/html/install/sql/testlink_create_tables_mysql.sql || true
     echo "[entrypoint] Schema import attempt finished."
   fi
+  # --- ADD: import default data so installer won't force "upgrade" ---
+  if [ -f /var/www/html/install/sql/testlink_create_default_data.sql ]; then
+    mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" "${TL_DB_NAME}" \
+    < /var/www/html/install/sql/testlink_create_default_data.sql || true
+  fi
+  if [ -f /var/www/html/install/sql/testlink_create_default_data_mysql.sql ]; then
+    mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" "${TL_DB_NAME}" \
+    < /var/www/html/install/sql/testlink_create_default_data_mysql.sql || true
+  fi
+
+  # If db_version exists but is empty/old, bump it to 1.9.20 (idempotent best-effort)
+  if mysql -N -s -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" "${TL_DB_NAME}" \
+    -e "SHOW TABLES LIKE 'db_version';" | grep -q db_version; then
+    mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" "${TL_DB_NAME}" \
+    -e "UPDATE db_version SET dbversion='DB 1.9.20', version='TL 1.9.20' LIMIT 1;" || true
+  fi
+# --- END ADD ---
 fi
 
 # Enable API (best effort)

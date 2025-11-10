@@ -81,5 +81,11 @@ RUN printf '%s\n' \
   'RewriteRule ^$ login.php [L,R=302]' \
   > /var/www/html/.htaccess
 
+# ADD ↓↓↓
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+ENTRYPOINT ["docker-entrypoint.sh"]
+# ADD ↑↑↑
+
 EXPOSE 80
 CMD ["apache2-foreground"]
