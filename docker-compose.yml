@@ -6,13 +6,13 @@ services:
       # Hard-coded so Dokploy can't forget them
       - TZ=Africa/Douala
       - MARIADB_ROOT_PASSWORD=SuperRoot123!
-      - MARIADB_DATABASE=testlinkdb
+      - MARIADB_DATABASE=testlinkdb_new
       - MARIADB_USER=tluser
       - MARIADB_PASSWORD=TLpass123!
       - MARIADB_ROOT_HOST=%          # ← ADD THIS LINE HERE
     # NEW volume name to avoid any old, incompatible DB data
     volumes:
-      - mariadb_data_v3:/var/lib/mysql
+      - mariadb_data_v4:/var/lib/mysql
       - ./db-init:/docker-entrypoint-initdb.d   # ← ADD THIS LINE
     restart: unless-stopped
     healthcheck:
@@ -35,7 +35,7 @@ services:
       - TZ=Africa/Douala
       - TL_DB_HOST=mariadb
       - TL_DB_PORT=3306
-      - TL_DB_NAME=testlinkdb
+      - TL_DB_NAME=testlinkdb_new
       - TL_DB_USER=tluser
       - TL_DB_PASS=TLpass123!
       - TL_DB_PREFIX=
@@ -77,7 +77,7 @@ services:
     networks: [appnet]     # ADDED
 
 volumes:
-  mariadb_data_v3:  # <- new name to force a clean DB
+  mariadb_data_v4:  # <- new name to force a clean DB
   tl_uploads:
   tl_logs:
   tl_tpl_c:

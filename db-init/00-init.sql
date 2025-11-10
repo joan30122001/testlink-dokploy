@@ -3,8 +3,8 @@ CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY 'SuperRoot123!';
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
 
 -- Ensure the app DB + user exist and can connect from containers
-CREATE DATABASE IF NOT EXISTS `testlinkdb` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS `testlinkdb_new` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS 'tluser'@'%' IDENTIFIED BY 'TLpass123!';
-GRANT ALL PRIVILEGES ON `testlinkdb`.* TO 'tluser'@'%';
+GRANT ALL PRIVILEGES ON `testlinkdb_new`.* TO 'tluser'@'%';
 
 FLUSH PRIVILEGES;
