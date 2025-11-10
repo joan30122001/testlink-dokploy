@@ -122,5 +122,43 @@ if($r && $r->num_rows>0){
 }
 ' || true
 
+# --- ADD: hard-force admin credentials (idempotent) --------------------------
+# 1) If 'admin' does not exist -> create it with MD5(TL_ADMIN_PASS)
+mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" "${TL_DB_NAME}" -e "
+INSERT INTO users (login,password,email,role_id,active,locale)
+SELECT '${TL_ADMIN_USER}', MD5('${TL_ADMIN_PASS}'), '${TL_ADMIN_EMAIL}',
+       COALESCE((SELECT id FROM roles WHERE name='admin' OR description LIKE '%Admin%' ORDER BY id DESC LIMIT 1),8),
+       1,'en_GB'
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE login='${TL_ADMIN_USER}');
+" || true
+
+# 2) If 'admin' exists -> ensure MD5(TL_ADMIN_PASS), active=1, keep role/admin-ish
+mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" "${TL_DB_NAME}" -e "
+UPDATE users
+   SET password = MD5('${TL_ADMIN_PASS}'),
+       active   = 1,
+       email    = '${TL_ADMIN_EMAIL}'
+ WHERE login='${TL_ADMIN_USER}';
+" || true
+
+# 3) If your schema uses 60-char bcrypt (rare on TL 1.9.20), update to bcrypt too.
+php -r '
+$u=getenv("TL_ADMIN_USER"); $p=getenv("TL_ADMIN_PASS");
+@include "/var/www/html/config_db.inc.php";
+$mysqli=@new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+if ($mysqli && !$mysqli->connect_errno){
+  $r=$mysqli->query("SHOW COLUMNS FROM users LIKE \"password\"");
+  if($r && ($c=$r->fetch_assoc())){
+    if (preg_match("/varchar\\((5[0-9]|6[0-3])\\)/i", $c["Type"] ?? "")) {
+      $hash=password_hash($p, PASSWORD_BCRYPT);
+      $u_esc=$mysqli->real_escape_string($u);
+      $mysqli->query("UPDATE users SET password=\"{$hash}\", active=1 WHERE login=\"{$u_esc}\"");
+    }
+  }
+}
+' || true
+# --- END ADD -----------------------------------------------------------------
+
+
 echo "[entrypoint] Starting Apache…"
 exec apache2-foreground
