@@ -66,6 +66,13 @@ RUN set -euo pipefail \
  && chown -R www-data:www-data /var/www/html \
  && rm -rf /tmp/testlink
 
+# Create installer-expected absolute paths and link them to the app dirs
+RUN mkdir -p /var/testlink/logs /var/testlink/upload_area \
+ && chown -R www-data:www-data /var/testlink \
+ && rm -rf /var/www/html/logs /var/www/html/upload_area || true \
+ && ln -s /var/testlink/logs /var/www/html/logs \
+ && ln -s /var/testlink/upload_area /var/www/html/upload_area
+
 # ✅ Force "/" to go to /login.php so reverse proxies don't 404
 RUN printf '%s\n' \
   'RewriteEngine On' \
