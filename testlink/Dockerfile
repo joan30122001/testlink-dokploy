@@ -35,7 +35,7 @@ RUN a2enmod rewrite && \
     ln -sf /proc/self/fd/1 /var/log/apache2/access.log && \
     ln -sf /proc/self/fd/2 /var/log/apache2/error.log
 
-# Fetch & unpack TestLink (handles both layouts)
+# Fetch & unpack TestLink (handles both archive layouts)
 RUN set -euo pipefail \
  && curl -fL --retry 5 -A "curl/7.x" \
       -o /tmp/testlink.tar.gz \

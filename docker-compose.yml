@@ -1,18 +1,21 @@
-# no "version" key (compose v2+ ignores it)
+# Compose v2 syntax (no version key)
 services:
   mariadb:
     image: mariadb:10.6
     environment:
+      # Hard-coded so Dokploy can't forget them
+      - TZ=Africa/Douala
       - MARIADB_ROOT_PASSWORD=SuperRoot123!
       - MARIADB_DATABASE=testlinkdb
       - MARIADB_USER=tluser
       - MARIADB_PASSWORD=TLpass123!
+    # NEW volume name to avoid any old, incompatible DB data
     volumes:
-      - mariadb_data:/var/lib/mysql
+      - mariadb_data_v2:/var/lib/mysql
     restart: unless-stopped
     healthcheck:
-      # use CMD-SHELL so the password expands; long start period for first run
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$MARIADB_ROOT_PASSWORD\" --protocol=TCP --silent || exit 1"]
+      # Do NOT depend on env expansion; call with literals to avoid the warning you saw
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -pSuperRoot123! --protocol=TCP --silent || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 60
@@ -26,6 +29,7 @@ services:
       mariadb:
         condition: service_healthy
     environment:
+      - TZ=Africa/Douala
       - TL_DB_HOST=mariadb
       - TL_DB_PORT=3306
       - TL_DB_NAME=testlinkdb
@@ -36,8 +40,9 @@ services:
       - TL_ADMIN_USER=admin
       - TL_ADMIN_PASS=AdminPass123!
       - TL_ADMIN_EMAIL=admin@example.com
+    # Expose HTTP to host; point your Dokploy domain to 8080
     ports:
-      - "8888:80"               # In Dokploy, set your domain to target port 8080
+      - "8080:80"
     volumes:
       - tl_uploads:/var/www/html/upload_area
       - tl_logs:/var/www/html/logs
@@ -48,7 +53,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 30
-      start_period: 30s
+      start_period: 45s
 
   phpmyadmin:
     image: phpmyadmin:5-apache
@@ -60,11 +65,11 @@ services:
       - PMA_USER=tluser
       - PMA_PASSWORD=TLpass123!
     ports:
-      - "8081:80"
+      - "8081:80"  # optional helper
     restart: unless-stopped
 
 volumes:
-  mariadb_data:
+  mariadb_data_v2:  # <- new name to force a clean DB
   tl_uploads:
   tl_logs:
   tl_tpl_c:
