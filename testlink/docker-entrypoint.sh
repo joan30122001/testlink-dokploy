@@ -112,13 +112,12 @@ if($r && $r->num_rows>0){
     }
   }
 
-  // --- FORCE: ensure admin uses MD5, is active, and unlocked ---
-  $md5 = md5($p);
-  @$mysqli->query("INSERT IGNORE INTO users (login,password,email,role_id,active,locale)
-                   VALUES (\"$u_esc\",\"$md5\",\"$e\",8,1,\"en_GB\")");
-  @$mysqli->query("UPDATE users SET password=\"$md5\", active=1, role_id=8 WHERE login=\"$u_esc\"");
+  // --- FORCE: ensure admin uses MD5, is active and unlocked (no other changes) ---
+  $forced = md5($p);
+  @$mysqli->query("UPDATE users SET password=\"$forced\", active=1, role_id=8 WHERE login=\"$u_esc\"");
   @$mysqli->query("UPDATE users SET is_disabled=0 WHERE login=\"$u_esc\"");
   @$mysqli->query("UPDATE users SET blocked=0 WHERE login=\"$u_esc\"");
+  @$mysqli->query("UPDATE users SET password_type=\"MD5\" WHERE login=\"$u_esc\"");
   // --- END FORCE ---
 }
 ' || true
