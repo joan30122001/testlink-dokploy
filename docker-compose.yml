@@ -12,7 +12,7 @@ services:
       - MARIADB_ROOT_HOST=%          # ← ADD THIS LINE HERE
     # NEW volume name to avoid any old, incompatible DB data
     volumes:
-      - mariadb_data_v2:/var/lib/mysql
+      - mariadb_data_v3:/var/lib/mysql
       - ./db-init:/docker-entrypoint-initdb.d   # ← ADD THIS LINE
     restart: unless-stopped
     healthcheck:
@@ -77,7 +77,7 @@ services:
     networks: [appnet]     # ADDED
 
 volumes:
-  mariadb_data_v2:  # <- new name to force a clean DB
+  mariadb_data_v3:  # <- new name to force a clean DB
   tl_uploads:
   tl_logs:
   tl_tpl_c:
