@@ -20,6 +20,7 @@ services:
       timeout: 5s
       retries: 60
       start_period: 120s
+    networks: [appnet]     # ADDED
 
   testlink:
     build:
@@ -55,6 +56,9 @@ services:
       timeout: 5s
       retries: 30
       start_period: 45s
+    links:                 # ADDED (ensures /etc/hosts has 'mariadb')
+      - mariadb            # ADDED
+    networks: [appnet]     # ADDED
 
   phpmyadmin:
     image: phpmyadmin:5-apache
@@ -68,9 +72,14 @@ services:
     ports:
       - "8081:80"  # optional helper
     restart: unless-stopped
+    networks: [appnet]     # ADDED
 
 volumes:
   mariadb_data_v2:  # <- new name to force a clean DB
   tl_uploads:
   tl_logs:
   tl_tpl_c:
+
+networks:
+  appnet:            # ADDED
+    driver: bridge   # ADDED
