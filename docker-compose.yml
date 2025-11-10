@@ -7,14 +7,15 @@ services:
       - MARIADB_USER=bn_testlink
       - MARIADB_PASSWORD=change_db_pw
     volumes:
-      - mariadb_data:/var/lib/mysql
+      # 👇 bump the volume name to force a fresh, clean DB without SSH
+      - mariadb_data_v2:/var/lib/mysql
     restart: unless-stopped
     healthcheck:
-      # Use TCP, explicit root, and the right password
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--protocol=TCP", "-u", "root", "-pchange_root"]
+      test: ["CMD-SHELL", "mysql -uroot -p\"$MARIADB_ROOT_PASSWORD\" -e 'select 1' >/dev/null 2>&1"]
       interval: 10s
       timeout: 5s
-      retries: 15
+      retries: 30
+      start_period: 60s
 
   testlink:
     build:
@@ -33,9 +34,9 @@ services:
       - TL_ADMIN_PASS=admin12345
       - TL_ADMIN_EMAIL=admin@example.com
       - TL_ENABLE_API=true
-    # Expose on host 8080; easiest with Dokploy “Custom Port”
+    # 👇 expose on host so Dokploy can reverse-proxy to it
     ports:
-      - "8080:80"
+      - "8888:80"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost/login.php"]
@@ -57,4 +58,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  mariadb_data:
+  mariadb_data_v2:
