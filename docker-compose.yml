@@ -13,6 +13,7 @@ services:
     # NEW volume name to avoid any old, incompatible DB data
     volumes:
       - mariadb_data_v2:/var/lib/mysql
+      - ./db-init:/docker-entrypoint-initdb.d   # ← ADD THIS LINE
     restart: unless-stopped
     healthcheck:
       # Do NOT depend on env expansion; call with literals to avoid the warning you saw
