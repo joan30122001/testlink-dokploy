@@ -1,23 +1,22 @@
-version: "3.8"
-
+# no "version" key (compose v2+ ignores it)
 services:
   mariadb:
     image: mariadb:10.6
     environment:
-      - MARIADB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
-      - MARIADB_DATABASE=${DB_NAME}
-      - MARIADB_USER=${DB_USER}
-      - MARIADB_PASSWORD=${DB_PASSWORD}
+      - MARIADB_ROOT_PASSWORD=SuperRoot123!
+      - MARIADB_DATABASE=testlinkdb
+      - MARIADB_USER=tluser
+      - MARIADB_PASSWORD=TLpass123!
     volumes:
       - mariadb_data:/var/lib/mysql
     restart: unless-stopped
     healthcheck:
-      # IMPORTANT: use CMD-SHELL so the env var expands, and reference MARIADB_ROOT_PASSWORD
+      # use CMD-SHELL so the password expands; long start period for first run
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$MARIADB_ROOT_PASSWORD\" --protocol=TCP --silent || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 30
-      start_period: 60s
+      retries: 60
+      start_period: 120s
 
   testlink:
     build:
@@ -29,16 +28,16 @@ services:
     environment:
       - TL_DB_HOST=mariadb
       - TL_DB_PORT=3306
-      - TL_DB_NAME=${DB_NAME}
-      - TL_DB_USER=${DB_USER}
-      - TL_DB_PASS=${DB_PASSWORD}
+      - TL_DB_NAME=testlinkdb
+      - TL_DB_USER=tluser
+      - TL_DB_PASS=TLpass123!
       - TL_DB_PREFIX=
       - TL_ENABLE_API=true
-      - TL_ADMIN_USER=${TL_USERNAME}
-      - TL_ADMIN_PASS=${TL_PASSWORD}
-      - TL_ADMIN_EMAIL=${TL_EMAIL}
+      - TL_ADMIN_USER=admin
+      - TL_ADMIN_PASS=AdminPass123!
+      - TL_ADMIN_EMAIL=admin@example.com
     ports:
-      - "8888:80"   # In Dokploy, point your domain to port 8080
+      - "8888:80"               # In Dokploy, set your domain to target port 8080
     volumes:
       - tl_uploads:/var/www/html/upload_area
       - tl_logs:/var/www/html/logs
@@ -48,7 +47,7 @@ services:
       test: ["CMD-SHELL", "curl -sf http://localhost/login.php || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 20
+      retries: 30
       start_period: 30s
 
   phpmyadmin:
@@ -58,8 +57,8 @@ services:
         condition: service_healthy
     environment:
       - PMA_HOST=mariadb
-      - PMA_USER=${DB_USER}
-      - PMA_PASSWORD=${DB_PASSWORD}
+      - PMA_USER=tluser
+      - PMA_PASSWORD=TLpass123!
     ports:
       - "8081:80"
     restart: unless-stopped

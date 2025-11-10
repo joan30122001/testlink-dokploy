@@ -3,20 +3,19 @@ set -e
 
 : "${TL_DB_HOST:=mariadb}"
 : "${TL_DB_PORT:=3306}"
-: "${TL_DB_NAME:=bitnami_testlink}"
-: "${TL_DB_USER:=bn_testlink}"
-: "${TL_DB_PASS:=change_db_pw}"
+: "${TL_DB_NAME:=testlinkdb}"
+: "${TL_DB_USER:=tluser}"
+: "${TL_DB_PASS:=TLpass123!}"
 : "${TL_DB_PREFIX:=}"
-
 : "${TL_ENABLE_API:=true}"
 : "${TL_ADMIN_USER:=admin}"
-: "${TL_ADMIN_PASS:=admin12345}"
+: "${TL_ADMIN_PASS:=AdminPass123!}"
 : "${TL_ADMIN_EMAIL:=admin@example.com}"
 
 CONFIG_DB="/var/www/html/config_db.inc.php"
 CONFIG_MAIN="/var/www/html/config.inc.php"
 
-# Ensure main config exists if sample shipped
+# Ensure main app config exists if a sample is present
 if [ ! -f "$CONFIG_MAIN" ] && [ -f /var/www/html/config.inc.php.sample ]; then
   cp /var/www/html/config.inc.php.sample "$CONFIG_MAIN"
   chown www-data:www-data "$CONFIG_MAIN"
@@ -24,7 +23,7 @@ if [ ! -f "$CONFIG_MAIN" ] && [ -f /var/www/html/config.inc.php.sample ]; then
 fi
 
 echo "[entrypoint] Waiting for DB ${TL_DB_HOST}:${TL_DB_PORT}…"
-for i in {1..120}; do
+for i in {1..180}; do
   if mysqladmin ping -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" --silent >/dev/null 2>&1; then
     echo "[entrypoint] DB ping ok"
     break
@@ -32,7 +31,7 @@ for i in {1..120}; do
   sleep 2
 done
 
-# Write DB config once
+# Write DB config (idempotent)
 if [ ! -f "$CONFIG_DB" ]; then
   cat > "$CONFIG_DB" <<PHP
 <?php
@@ -53,7 +52,7 @@ fi
 mkdir -p /var/www/html/upload_area /var/www/html/logs /var/www/html/gui/templates_c
 chown -R www-data:www-data /var/www/html/upload_area /var/www/html/logs /var/www/html/gui/templates_c || true
 
-# Import schema if empty
+# Import schema if missing
 if mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" -e "SELECT 1" "${TL_DB_NAME}" >/dev/null 2>&1; then
   SCHEMA_OK=$(mysql -N -s -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" \
     -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${TL_DB_NAME}' AND table_name='users';" 2>/dev/null || echo "ERR")
@@ -63,16 +62,16 @@ if mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}"
       < /var/www/html/install/sql/testlink_create_tables.sql || true
     mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" "${TL_DB_NAME}" \
       < /var/www/html/install/sql/testlink_create_tables_mysql.sql || true
-    echo "[entrypoint] Schema import done."
+    echo "[entrypoint] Schema import attempt finished."
   fi
 fi
 
-# Enable API flag (best effort)
+# Enable API (best effort)
 if [ -f "$CONFIG_MAIN" ] && [ "${TL_ENABLE_API}" = "true" ]; then
   sed -i 's/\($tlCfg->api->enabled\s*=\s*\)FALSE/\1TRUE/i' "$CONFIG_MAIN" || true
 fi
 
-# Create admin user if missing
+# Create admin if table exists
 php -r '
 $u=getenv("TL_ADMIN_USER"); $p=getenv("TL_ADMIN_PASS"); $e=getenv("TL_ADMIN_EMAIL");
 @include "/var/www/html/config_db.inc.php";
