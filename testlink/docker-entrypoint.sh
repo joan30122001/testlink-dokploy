@@ -80,8 +80,33 @@ if mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}"
     mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" "${TL_DB_NAME}" \
     -e "UPDATE db_version SET dbversion='DB 1.9.20', version='TL 1.9.20' LIMIT 1;" || true
   fi
-# --- END ADD ---
+  # --- END ADD ---
 fi
+
+# --- ADD: ensure MySQL-specific schema & default data are loaded (1.9.20 layout) ---
+if [ -d /var/www/html/install/sql/mysql ]; then
+  for sql in \
+      /var/www/html/install/sql/mysql/testlink_create_tables.sql \
+      /var/www/html/install/sql/mysql/testlink_create_default_data.sql \
+      /var/www/html/install/sql/mysql/testlink_create_default_data_mysql.sql
+  do
+    if [ -f "$sql" ]; then
+      mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" "${TL_DB_NAME}" < "$sql" || true
+    fi
+  done
+fi
+# --- END ADD ---
+
+# --- ADD: normalize db_version so installer doesn't think it's a 1.7 pre-release ---
+if mysql -N -s -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" "${TL_DB_NAME}" \
+     -e "SHOW TABLES LIKE 'db_version';" | grep -q db_version; then
+  # Best-effort: either update existing row or insert if table is empty
+  mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" "${TL_DB_NAME}" \
+    -e "UPDATE db_version SET dbversion='DB 1.9.20', version='TL 1.9.20';"
+  mysql -h"${TL_DB_HOST}" -P"${TL_DB_PORT}" -u"${TL_DB_USER}" -p"${TL_DB_PASS}" "${TL_DB_NAME}" \
+    -e "INSERT INTO db_version (dbversion,version) SELECT 'DB 1.9.20','TL 1.9.20' WHERE NOT EXISTS (SELECT 1 FROM db_version);"
+fi
+# --- END ADD ---
 
 # Enable API (best effort)
 if [ -f "$CONFIG_MAIN" ] && [ "${TL_ENABLE_API}" = "true" ]; then
@@ -104,6 +129,15 @@ if($r && $r->num_rows>0){
     $ok=$mysqli->query("INSERT INTO users (login,password,email,role_id,active,locale) VALUES (\"$u_esc\",\"$hash\",\"$e\",8,1,\"en_GB\")");
     if($ok){ echo "[entrypoint] Admin user created\n"; }
   }
+  // --- ADD: if schema stores 32-char MD5, ensure admin uses MD5 instead of bcrypt ---
+  $r3 = $mysqli->query("SHOW COLUMNS FROM users LIKE \"password\"");
+  if ($r3 && ($c = $r3->fetch_assoc())) {
+    if (preg_match("/varchar\\(32\\)/i", $c["Type"] ?? "")) {
+      $md5 = md5($p);
+      $mysqli->query("UPDATE users SET password=\"$md5\" WHERE login=\"$u_esc\"") or /* ignore */;
+    }
+  }
+  // --- END ADD ---
 }
 ' || true
 
