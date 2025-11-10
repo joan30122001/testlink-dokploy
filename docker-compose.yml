@@ -42,6 +42,7 @@ services:
       - TL_ADMIN_EMAIL=admin@example.com
     # Expose HTTP to host; point your Dokploy domain to 8888
     ports:
+      - "8080:80"
       - "8888:80"
     volumes:
       - tl_uploads:/var/www/html/upload_area
