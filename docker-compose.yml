@@ -40,7 +40,7 @@ services:
       - TL_ADMIN_USER=admin
       - TL_ADMIN_PASS=AdminPass123!
       - TL_ADMIN_EMAIL=admin@example.com
-    # Expose HTTP to host; point your Dokploy domain to 8080
+    # Expose HTTP to host; point your Dokploy domain to 8888
     ports:
       - "8888:80"
     volumes:
