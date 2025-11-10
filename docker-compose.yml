@@ -12,10 +12,12 @@ services:
       - mariadb_data:/var/lib/mysql
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${DB_ROOT_PASSWORD}", "--protocol=TCP"]
+      # IMPORTANT: use CMD-SHELL so the env var expands, and reference MARIADB_ROOT_PASSWORD
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$MARIADB_ROOT_PASSWORD\" --protocol=TCP --silent || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 15
+      retries: 30
+      start_period: 60s
 
   testlink:
     build:
@@ -25,30 +27,29 @@ services:
       mariadb:
         condition: service_healthy
     environment:
-      # DB config for TestLink
       - TL_DB_HOST=mariadb
       - TL_DB_PORT=3306
       - TL_DB_NAME=${DB_NAME}
       - TL_DB_USER=${DB_USER}
       - TL_DB_PASS=${DB_PASSWORD}
       - TL_DB_PREFIX=
-      # App bootstrap
       - TL_ENABLE_API=true
       - TL_ADMIN_USER=${TL_USERNAME}
       - TL_ADMIN_PASS=${TL_PASSWORD}
       - TL_ADMIN_EMAIL=${TL_EMAIL}
     ports:
-      - "8888:80"           # <-- In Dokploy, point your domain to port 8080
+      - "8888:80"   # In Dokploy, point your domain to port 8080
     volumes:
       - tl_uploads:/var/www/html/upload_area
       - tl_logs:/var/www/html/logs
       - tl_tpl_c:/var/www/html/gui/templates_c
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost/login.php"]
+      test: ["CMD-SHELL", "curl -sf http://localhost/login.php || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20
+      start_period: 30s
 
   phpmyadmin:
     image: phpmyadmin:5-apache
@@ -60,7 +61,7 @@ services:
       - PMA_USER=${DB_USER}
       - PMA_PASSWORD=${DB_PASSWORD}
     ports:
-      - "8081:80"           # Optional helper: http://SERVER_IP:8081
+      - "8081:80"
     restart: unless-stopped
 
 volumes:
